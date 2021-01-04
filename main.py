@@ -23,13 +23,10 @@ voices = engine.getProperty('voices')
 engine.setProperty('voice', voices[1].id)
 
 
-def openweathermap(serviceurl, api_key='paste your api keys or u can give ur keys in a function call also',
+def openweathermap(serviceurl, api_key=os.environ['weather'],
                    place='Madurai'):
     # get your api key here https://home.openweathermap.org/ and paste in that function
-    payload = {'q': place, 'appid': api_key}
-    url = 'https://' + serviceurl + urllib.parse.urlencode(payload)
-    d = urllib.request.urlopen(url).read().decode()
-    js = json.loads(d)
+    js = requests.get('https://' + serviceurl, params={'q': place, 'appid': api_key}).json()
     return [js['weather'][0]['description'], js['main']['temp'], js['main']['pressure'], js['wind']['speed']]
 
 
@@ -50,6 +47,7 @@ def take_command():
             listener.adjust_for_ambient_noise(source)
             voice = listener.listen(source, timeout=2)
             command = listener.recognize_google(voice).lower()
+
             if 'alexa' in command:
                 command = command.replace('alexa', '').strip()
             else:
@@ -216,7 +214,9 @@ def run_alexa():
         talk('I am already in relationship with nandy!')
     elif 'weather' in command:
         place = [i for i in re.split(r'weather|in ', command) if len(i) > 1 and i][-1]
-        data = openweathermap('api.openweathermap.org/data/2.5/weather?', '79caf71712770c9af7b697ff4cd806e9', place)
+        print(os.environ['weather'])
+        data = openweathermap('api.openweathermap.org/data/2.5/weather?', place=place)
+        print(data)
         string = f'Current weather status in {place} is {data[0]}, Temperature in {place} is {data[1]}, Pressure in {place} is {data[2]}, and Wind Speed in {place} is {data[3]}'
         talk(string)
     elif 'where' in command:
@@ -248,3 +248,5 @@ while True:
             break
     except:
         continue
+
+# os.environ['weather']
