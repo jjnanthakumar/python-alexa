@@ -5,8 +5,12 @@ import datetime
 import pywhatkit
 import wikipedia
 import pyjokes
-import urllib.request, json
-import re, os, subprocess
+import urllib.request
+import json
+import pyglet
+import re
+import os
+import subprocess
 from functools import reduce
 import random
 from word2number import w2n
@@ -15,6 +19,13 @@ import webbrowser
 import rotatescreen
 import requests
 import psutil
+from googletrans import Translator, LANGUAGES
+from gtts import gTTS
+def get_languagecode(lang):
+    for k,v in LANGUAGES.items():
+        if v == lang.lower():
+            return k
+    return 0
 
 listener = sr.Recognizer()
 engine = pyttsx3.init()
@@ -26,13 +37,14 @@ engine.setProperty('voice', voices[1].id)
 def openweathermap(serviceurl, api_key=os.environ['weather'],
                    place='Madurai'):
     # get your api key here https://home.openweathermap.org/ and paste in that function
-    js = requests.get('https://' + serviceurl, params={'q': place, 'appid': api_key}).json()
+    js = requests.get('https://' + serviceurl,
+                      params={'q': place, 'appid': api_key}).json()
     return [js['weather'][0]['description'], js['main']['temp'], js['main']['pressure'], js['wind']['speed']]
 
 
 def talk(text=''):
     if not text:
-        engine.say('Hey, I am your Alexa!')
+        engine.say('Hey, I am Fridey, your personal assistant!')
         time.sleep(1)
         engine.say('What can I do for you?')
     else:
@@ -47,13 +59,13 @@ def take_command():
             listener.adjust_for_ambient_noise(source)
             voice = listener.listen(source, timeout=2)
             command = listener.recognize_google(voice).lower()
-
             if 'alexa' in command:
                 command = command.replace('alexa', '').strip()
             else:
                 pass
     except:
         talk('I can\'t recognize your voice')
+        return take_command()
     return command
 
 
@@ -126,7 +138,8 @@ def run_alexa():
             talk("Please provide a valid number !")
             return
         datet = datetime.datetime.now()
-        pywhatkit.sendwhatmsg('+91' + num, 'Hii', int(datet.strftime('%H')), int(datet.strftime('%M')) + 1)
+        pywhatkit.sendwhatmsg(
+            '+91' + num, 'Hii', int(datet.strftime('%H')), int(datet.strftime('%M')) + 1)
     elif 'cancel shut' in command:
         pywhatkit.cancelShutdown()
         talk('System Shutdown Cancelled!')
@@ -159,7 +172,8 @@ def run_alexa():
                 if k == 32:
                     r = random.randint(10, 10000)
                     cv2.imwrite(f'captured{r}.png', frame)
-                    talk(f'Image captured and saved as captured{r} into current directory!')
+                    talk(
+                        f'Image captured and saved as captured{r} into current directory!')
                 if cv2.getWindowProperty('Camera', cv2.WND_PROP_VISIBLE) < 1:
                     break
             cam.release()
@@ -177,7 +191,9 @@ def run_alexa():
             talk("Opening  " + app)
             return
         try:
-            n = subprocess.Popen(app, stderr=subprocess.PIPE)
+            # n = subprocess.Popen(app, stderr=subprocess.PIPE)
+            n = subprocess.Popen(f'explorer {app}')
+            print(os.path.realpath(app))
             talk("Opening  " + app)
         except:
             talk("Sorry I can't open " + app)
@@ -213,10 +229,11 @@ def run_alexa():
     elif 'single' in command:
         talk('I am already in relationship with nandy!')
     elif 'weather' in command:
-        place = [i for i in re.split(r'weather|in ', command) if len(i) > 1 and i][-1]
-        print(os.environ['weather'])
-        data = openweathermap('api.openweathermap.org/data/2.5/weather?', place=place)
-        print(data)
+        place = [i for i in re.split(
+            r'weather|in ', command) if len(i) > 1 and i][-1]
+        data = openweathermap(
+            'api.openweathermap.org/data/2.5/weather?', place=place)
+        # print(data)
         string = f'Current weather status in {place} is {data[0]}, Temperature in {place} is {data[1]}, Pressure in {place} is {data[2]}, and Wind Speed in {place} is {data[3]}'
         talk(string)
     elif 'where' in command:
@@ -236,11 +253,35 @@ def run_alexa():
         screen.rotate_to(degree % 360)
         talk('Screen rotated to ' + str(degree))
         degree += 90
+    elif 'translate' in command:
+        translator = Translator()
+        talk('What is the source language which you are gonna speak?')
+        from_lang = get_languagecode(take_command().strip())
+        print(from_lang)
+        talk('What is the destination language which needs to be translated?')
+        to_lang = get_languagecode(take_command().strip())
+        talk("what message to be translated?")
+        get_message = take_command()
+        text_to_translate = translator.translate(get_message,
+                                                 src=from_lang,
+                                                 dest=to_lang)
+        text = text_to_translate.text
+        speak = gTTS(text=text, lang=to_lang, slow=False)
+        speak.save("captured_voice.mp3")
+        music = pyglet.media.load("captured_voice.mp3", streaming=False)
+        music.play()
+        time.sleep(music.duration)  # prevent from killing
+        os.remove("captured_voice.mp3")  # remove temperory file
+    elif 'sleep' in command.strip():
+        talk("Ok sir! I won't disturb you for a minute")
+        time.sleep(60)
+        talk()
     else:
         talk('Please say the command again ! ')
 
 
 degree = 90
+talk()
 while True:
     try:
         n = run_alexa()
@@ -248,5 +289,3 @@ while True:
             break
     except:
         continue
-
-# os.environ['weather']

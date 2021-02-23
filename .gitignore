@@ -1,2 +1,6 @@
 /venv
 .idea
+sending_data
+send_emails.py
+numbers_data.py
+__pycache__
